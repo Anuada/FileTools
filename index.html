@@ -8,7 +8,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <!-- JSZip for batch download -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <!-- html2canvas not needed but we keep for potential features, jsPDF will be loaded dynamically -->
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -30,7 +29,6 @@
             margin: 0 auto;
         }
 
-        /* header */
         .title-section {
             text-align: center;
             margin-bottom: 2rem;
@@ -52,7 +50,6 @@
             margin-top: 0.4rem;
         }
 
-        /* tabs */
         .tabs {
             display: flex;
             flex-wrap: wrap;
@@ -150,6 +147,12 @@
             filter: brightness(1.05);
         }
 
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .gallery {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -206,6 +209,7 @@
             font-size: 0.75rem;
             color: #5b6e8c;
         }
+        
         .loader-small {
             display: inline-block;
             width: 16px;
@@ -215,9 +219,11 @@
             border-top-color: transparent;
             animation: spin 0.6s linear infinite;
         }
+        
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
         .img-preview-area {
             display: flex;
             flex-wrap: wrap;
@@ -226,12 +232,29 @@
             max-height: 200px;
             overflow-y: auto;
         }
+        
         .preview-thumb {
             width: 70px;
             height: 70px;
             object-fit: cover;
             border-radius: 8px;
             border: 1px solid #cbd5e1;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #2b6e4e;
+            transition: width 0.3s ease;
+            width: 0%;
         }
     </style>
 </head>
@@ -242,19 +265,18 @@
         <div class="sub">PDF → Images • Images → PDF • Text → PDF • Batch ZIP downloads</div>
     </div>
 
-    <!-- TABS -->
     <div class="tabs">
         <button class="tab-btn active" data-tab="pdf2img"><i class="fas fa-file-pdf"></i> PDF to Images</button>
         <button class="tab-btn" data-tab="img2pdf"><i class="fas fa-images"></i> Images to PDF</button>
         <button class="tab-btn" data-tab="txt2pdf"><i class="fas fa-file-alt"></i> Text to PDF</button>
     </div>
 
-    <!-- ========================= PANEL 1: PDF TO IMAGES ========================= -->
+    <!-- PANEL 1: PDF TO IMAGES -->
     <div id="pdf2img" class="panel active-panel">
         <div class="card">
             <div class="upload-zone" id="pdfUploadZone">
                 <i class="fas fa-cloud-upload-alt fa-2x"></i>
-                <p>Upload PDF (single or multiple) </p>
+                <p>Upload PDF (single or multiple)</p>
                 <input type="file" id="multiPdfInput" accept="application/pdf" multiple style="display:none">
                 <div class="status-badge" style="margin-top:10px;display:inline-block">📁 Click or drag PDF(s)</div>
             </div>
@@ -278,7 +300,7 @@
         </div>
     </div>
 
-    <!-- ========================= PANEL 2: IMAGES TO PDF (FIXED) ========================= -->
+    <!-- PANEL 2: IMAGES TO PDF - FIXED VERSION -->
     <div id="img2pdf" class="panel">
         <div class="card">
             <div class="upload-zone" id="imgUploadZone">
@@ -292,7 +314,7 @@
                 <div>
                     <label>Page size: 
                         <select id="imgPdfPageSize">
-                            <option value="auto">Auto (fit to image, each page may vary)</option>
+                            <option value="auto">Auto (fit to image, each page varies)</option>
                             <option value="A4">A4 Portrait</option>
                             <option value="A4-L">A4 Landscape</option>
                             <option value="letter">Letter Portrait</option>
@@ -305,7 +327,7 @@
         </div>
     </div>
 
-    <!-- ========================= PANEL 3: TEXT TO PDF ========================= -->
+    <!-- PANEL 3: TEXT TO PDF -->
     <div id="txt2pdf" class="panel">
         <div class="card">
             <textarea id="textContent" rows="6" placeholder="Write or paste your text here...&#10;Lorem ipsum dolor sit amet, consectetur adipiscing elit."></textarea>
@@ -320,47 +342,27 @@
 </div>
 
 <script>
-    // Configure PDF.js worker
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-    // ------------------------- GLOBAL STATE (PDF to images multi file)
-    let allGeneratedImages = []; // { name: "pdfname_page1.png", dataUrl, pageNum, pdfName }
+    let allGeneratedImages = [];
     let currentPdfFilesList = [];
-    
-    // IMAGES to PDF state
     let selectedImageFiles = [];
-    
-    // Helper: load jsPDF dynamically (UMD)
-    let jsPDFReady = false;
-    let jsPDFLib = null;
+
     function loadJSPDF() {
         return new Promise((resolve, reject) => {
-            if (jsPDFReady && window.jspdf) {
+            if (window.jspdf) {
                 resolve(window.jspdf);
-                return;
-            }
-            if (document.querySelector('script[src*="jspdf.umd"]')) {
-                const check = setInterval(() => {
-                    if (window.jspdf) {
-                        clearInterval(check);
-                        jsPDFReady = true;
-                        resolve(window.jspdf);
-                    }
-                }, 100);
                 return;
             }
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-            script.onload = () => {
-                jsPDFReady = true;
-                resolve(window.jspdf);
-            };
+            script.onload = () => resolve(window.jspdf);
             script.onerror = () => reject(new Error('Failed to load jsPDF'));
             document.head.appendChild(script);
         });
     }
 
-    // ----- TABS logic
+    // Tabs logic
     const tabs = document.querySelectorAll('.tab-btn');
     const panels = document.querySelectorAll('.panel');
     tabs.forEach(btn => {
@@ -373,7 +375,7 @@
         });
     });
 
-    // ---------- 1) PDF to images (MULTI PDF support)
+    // PDF to Images (keeping original working code)
     const pdfUploadZone = document.getElementById('pdfUploadZone');
     const multiPdfInput = document.getElementById('multiPdfInput');
     const pdfFileListSpan = document.getElementById('pdfFileList');
@@ -401,7 +403,7 @@
         const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const total = pdfDoc.numPages;
         const images = [];
-        const scale = 2.2; 
+        const scale = 2.2;
         for (let i = 1; i <= total; i++) {
             const page = await pdfDoc.getPage(i);
             const viewport = page.getViewport({ scale });
@@ -443,18 +445,14 @@
         }
         pdfProgressMsg.innerHTML = `✅ Done! Generated ${totalConverted} images from ${currentPdfFilesList.length} PDF(s).`;
         setTimeout(() => pdfProgressMsg.style.display = 'none', 2000);
-        displayPdfImageGallery();
-        pdfBatchActions.style.display = 'block';
-    });
-
-    function displayPdfImageGallery() {
-        if (!allGeneratedImages.length) { pdfGalleryResult.innerHTML = '<div class="status-badge">No images generated.</div>'; return; }
+        
         let html = `<div class="gallery">`;
         allGeneratedImages.forEach((img, idx) => {
             html += `<div class="img-card"><img src="${img.dataUrl}" alt="page"><div style="font-size:0.7rem;margin:6px;">${img.filename}</div><button class="single-dl-img" data-idx="${idx}" style="background:#2c5a8c;border:none;color:white;padding:4px 8px;border-radius:20px;margin-top:4px;cursor:pointer;">⬇ Save</button></div>`;
         });
         html += `</div>`;
         pdfGalleryResult.innerHTML = html;
+        
         document.querySelectorAll('.single-dl-img').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const idx = parseInt(btn.getAttribute('data-idx'));
@@ -465,7 +463,8 @@
                 link.click();
             });
         });
-    }
+        pdfBatchActions.style.display = 'block';
+    });
 
     downloadAllPdfImagesBtn.addEventListener('click', async () => {
         if (!allGeneratedImages.length) { alert('No images to download.'); return; }
@@ -483,7 +482,7 @@
         URL.revokeObjectURL(url);
     });
 
-    // ---------- 2) IMAGES to PDF (FIXED - using robust image loading and proper page handling)
+    // ========== IMAGES TO PDF - COMPLETELY REWRITTEN ==========
     const imgUploadZone = document.getElementById('imgUploadZone');
     const multiImageInput = document.getElementById('multiImageInput');
     const imgFileListSpan = document.getElementById('imgFileList');
@@ -519,20 +518,13 @@
         updateImagePreviews(selectedImageFiles);
     });
 
-    // Helper: load image as HTMLImageElement with promise
-    function loadImageFromFile(file) {
+    // Convert image file to dataURL
+    function fileToDataURL(file) {
         return new Promise((resolve, reject) => {
-            const img = new Image();
-            const url = URL.createObjectURL(file);
-            img.onload = () => {
-                URL.revokeObjectURL(url);
-                resolve(img);
-            };
-            img.onerror = (err) => {
-                URL.revokeObjectURL(url);
-                reject(err);
-            };
-            img.src = url;
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsDataURL(file);
         });
     }
 
@@ -542,10 +534,10 @@
             return;
         }
         
-        // Show loading state
         const originalBtnText = createPdfFromImagesBtn.innerHTML;
         createPdfFromImagesBtn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Creating PDF...';
         createPdfFromImagesBtn.disabled = true;
+        imgToPdfResult.innerHTML = '<div class="status-badge"><i class="fas fa-spinner fa-pulse"></i> Processing images...</div>';
         
         try {
             await loadJSPDF();
@@ -553,124 +545,168 @@
             const pageSizeOption = document.getElementById('imgPdfPageSize').value;
             
             let pdfDoc = null;
-            let isFirstPage = true;
+            let firstPage = true;
             
             for (let i = 0; i < selectedImageFiles.length; i++) {
                 const file = selectedImageFiles[i];
-                let img;
-                try {
-                    img = await loadImageFromFile(file);
-                } catch (err) {
-                    console.error(`Failed to load image ${file.name}`, err);
-                    continue;
-                }
+                
+                // Load image as dataURL
+                const dataURL = await fileToDataURL(file);
+                
+                // Create an image element to get dimensions
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = () => reject(new Error(`Failed to load ${file.name}`));
+                    img.src = dataURL;
+                });
                 
                 const imgWidth = img.width;
                 const imgHeight = img.height;
                 
-                // Determine page dimensions based on user selection
-                let pageWidthMM, pageHeightMM;
-                let orientation = 'portrait';
+                // Determine page dimensions
+                let pageWidth, pageHeight, unit;
                 
-                if (pageSizeOption === 'A4') {
-                    // A4 portrait: 210mm x 297mm
-                    pageWidthMM = 210;
-                    pageHeightMM = 297;
-                    orientation = 'portrait';
-                } else if (pageSizeOption === 'A4-L') {
-                    pageWidthMM = 297;
-                    pageHeightMM = 210;
-                    orientation = 'landscape';
-                } else if (pageSizeOption === 'letter') {
-                    // Letter: 8.5in x 11in => 215.9mm x 279.4mm
-                    pageWidthMM = 215.9;
-                    pageHeightMM = 279.4;
-                    orientation = 'portrait';
-                } else {
-                    // Auto: create page sized exactly to image dimensions in mm at 72 DPI (1px = 0.352778mm approx)
-                    // Better: use pixel to mm conversion (1 inch = 25.4mm, standard 96 DPI? but jsPDF uses points 1/72 inch)
-                    // Let's compute using px * 0.3527778? Actually jsPDF expects mm; we can set custom dimensions.
-                    // For auto mode, we'll create a page with size = image dimensions in mm at 72 DPI (since 1px = 1/72 inch? no, standard screen 96 but jsPDF internal: 1 point = 1/72 inch)
-                    // Simple: use width = imgWidth * 0.264583 (mm per px at 96dpi)? but robust: we set using 'px' unit? jsPDF v2 supports 'px'? Yes!
-                    // Easier: Use 'px' unit in jsPDF to directly map image pixels.
-                    if (!pdfDoc) {
-                        // first page in auto mode: create with px unit
+                switch(pageSizeOption) {
+                    case 'A4':
+                        pageWidth = 210;
+                        pageHeight = 297;
+                        unit = 'mm';
+                        break;
+                    case 'A4-L':
+                        pageWidth = 297;
+                        pageHeight = 210;
+                        unit = 'mm';
+                        break;
+                    case 'letter':
+                        pageWidth = 215.9;
+                        pageHeight = 279.4;
+                        unit = 'mm';
+                        break;
+                    default: // auto
+                        pageWidth = imgWidth;
+                        pageHeight = imgHeight;
+                        unit = 'px';
+                }
+                
+                // Create new PDF or add page
+                if (firstPage) {
+                    if (unit === 'px') {
                         pdfDoc = new jsPDF({
                             unit: 'px',
-                            format: [imgWidth, imgHeight],
-                            orientation: imgWidth > imgHeight ? 'landscape' : 'portrait'
+                            format: [pageWidth, pageHeight],
+                            orientation: imgWidth >= imgHeight ? 'landscape' : 'portrait'
                         });
                     } else {
-                        pdfDoc.addPage([imgWidth, imgHeight], 'px');
+                        pdfDoc = new jsPDF({
+                            unit: 'mm',
+                            format: [pageWidth, pageHeight],
+                            orientation: pageWidth >= pageHeight ? 'landscape' : 'portrait'
+                        });
                     }
-                    // Add image with full size
-                    const pdfWidth = pdfDoc.internal.pageSize.getWidth();
-                    const pdfHeight = pdfDoc.internal.pageSize.getHeight();
-                    pdfDoc.addImage(img, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-                    isFirstPage = false;
-                    continue;
-                }
-                
-                // For standard sizes (A4/Letter)
-                if (!pdfDoc) {
-                    pdfDoc = new jsPDF({
-                        unit: 'mm',
-                        format: [pageWidthMM, pageHeightMM],
-                        orientation: orientation
-                    });
+                    firstPage = false;
                 } else {
-                    pdfDoc.addPage([pageWidthMM, pageHeightMM], 'mm');
+                    if (unit === 'px') {
+                        pdfDoc.addPage([pageWidth, pageHeight], 'px');
+                    } else {
+                        pdfDoc.addPage([pageWidth, pageHeight], 'mm');
+                    }
                 }
                 
-                const pdfWidth = pdfDoc.internal.pageSize.getWidth();   // in mm
-                const pdfHeight = pdfDoc.internal.pageSize.getHeight(); // in mm
+                const actualPageWidth = pdfDoc.internal.pageSize.getWidth();
+                const actualPageHeight = pdfDoc.internal.pageSize.getHeight();
                 
-                // Calculate scaling to fit image while preserving aspect ratio
-                let finalWidthMM, finalHeightMM;
-                const imgAspect = imgWidth / imgHeight;
-                const pageAspect = pdfWidth / pdfHeight;
-                
-                if (imgAspect > pageAspect) {
-                    // Image wider relative to page: fit to width
-                    finalWidthMM = pdfWidth;
-                    finalHeightMM = pdfWidth / imgAspect;
+                if (pageSizeOption === 'auto') {
+                    // Auto mode: image fills entire page
+                    pdfDoc.addImage(dataURL, 'JPEG', 0, 0, actualPageWidth, actualPageHeight);
                 } else {
-                    // Image taller: fit to height
-                    finalHeightMM = pdfHeight;
-                    finalWidthMM = pdfHeight * imgAspect;
+                    // Standard size: center and fit image
+                    const imgAspect = imgWidth / imgHeight;
+                    const pageAspect = actualPageWidth / actualPageHeight;
+                    
+                    let finalWidth, finalHeight;
+                    if (imgAspect > pageAspect) {
+                        finalWidth = actualPageWidth;
+                        finalHeight = actualPageWidth / imgAspect;
+                    } else {
+                        finalHeight = actualPageHeight;
+                        finalWidth = actualPageHeight * imgAspect;
+                    }
+                    
+                    const xOffset = (actualPageWidth - finalWidth) / 2;
+                    const yOffset = (actualPageHeight - finalHeight) / 2;
+                    
+                    pdfDoc.addImage(dataURL, 'JPEG', xOffset, yOffset, finalWidth, finalHeight);
                 }
-                
-                const xOffset = (pdfWidth - finalWidthMM) / 2;
-                const yOffset = (pdfHeight - finalHeightMM) / 2;
-                
-                // Add image (jsPDF supports HTMLImageElement)
-                pdfDoc.addImage(img, 'JPEG', xOffset, yOffset, finalWidthMM, finalHeightMM, undefined, 'FAST');
-                isFirstPage = false;
             }
             
             if (!pdfDoc) {
-                throw new Error('No valid images processed.');
+                throw new Error('No PDF was created');
             }
             
+            // Save the PDF
             const pdfBlob = pdfDoc.output('blob');
             const url = URL.createObjectURL(pdfBlob);
+            const timestamp = Date.now();
+            
             imgToPdfResult.innerHTML = `
-                <div class="flex-between">
-                    <span>✅ PDF created successfully with ${selectedImageFiles.length} image(s).</span>
-                    <a href="${url}" download="images_merged.pdf" class="btn btn-success" style="text-decoration:none;">⬇ Download PDF</a>
+                <div style="background:#e8f0fe; padding:1rem; border-radius:1rem;">
+                    <div class="flex-between">
+                        <span style="font-weight:600;">✅ PDF created successfully with ${selectedImageFiles.length} image(s)!</span>
+                        <a href="${url}" download="images_merged_${timestamp}.pdf" class="btn btn-success" style="text-decoration:none;">⬇ Download PDF</a>
+                    </div>
+                    <div class="status-badge" style="margin-top:12px; background:#d9f0e1;">
+                        <i class="fas fa-info-circle"></i> Images are centered and scaled to fit each page while preserving aspect ratio.
+                    </div>
                 </div>
-                <div class="status-badge" style="margin-top:8px;"><i class="fas fa-info-circle"></i> Each image placed centered, preserving aspect ratio.</div>
             `;
+            
         } catch (error) {
             console.error('PDF generation error:', error);
-            imgToPdfResult.innerHTML = `<div class="status-badge" style="background:#fee2e2;color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Error: ${error.message || 'Failed to generate PDF. Check image files.'}</div>`;
+            imgToPdfResult.innerHTML = `
+                <div class="status-badge" style="background:#fee2e2; color:#b91c1c; padding:1rem; border-radius:1rem;">
+                    <i class="fas fa-exclamation-triangle"></i> Error: ${error.message}
+                    <br><small>Please try different images or contact support.</small>
+                </div>
+            `;
         } finally {
             createPdfFromImagesBtn.innerHTML = originalBtnText;
             createPdfFromImagesBtn.disabled = false;
         }
     });
 
-    // ---------- 3) TEXT to PDF (improved with multi-page support)
+    // Drag and drop for images
+    imgUploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+    
+    imgUploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        if (files.length) {
+            selectedImageFiles = files;
+            imgFileListSpan.innerText = selectedImageFiles.map(f=>f.name).join(', ');
+            updateImagePreviews(selectedImageFiles);
+            imgToPdfResult.innerHTML = '';
+        }
+    });
+
+    pdfUploadZone.addEventListener('dragover', e => e.preventDefault());
+    pdfUploadZone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+        if (files.length) {
+            currentPdfFilesList = files;
+            pdfFileListSpan.innerText = currentPdfFilesList.map(f=>f.name).join(', ');
+            allGeneratedImages = [];
+            pdfGalleryResult.innerHTML = '';
+            pdfBatchActions.style.display = 'none';
+        }
+    });
+
+    // Text to PDF
     const createPdfFromTextBtn = document.getElementById('createPdfFromTextBtn');
     const textContentArea = document.getElementById('textContent');
     const fontSizeInput = document.getElementById('fontSize');
@@ -689,11 +725,10 @@
         const maxWidth = pageWidth - margin * 2;
         const splitText = doc.splitTextToSize(text, maxWidth);
         let y = 20;
-        doc.text(splitText, margin, y);
-        // handle multi-page if text overflows
-        let pageHeight = doc.internal.pageSize.getHeight();
+        const lineHeight = fontSize * 0.352777;
+        
         for (let i = 0; i < splitText.length; i++) {
-            const lineHeight = fontSize * 0.352777; // approximate line height in mm
+            const pageHeight = doc.internal.pageSize.getHeight();
             if (y + lineHeight > pageHeight - margin) {
                 doc.addPage();
                 y = margin;
@@ -701,12 +736,12 @@
             doc.text(splitText[i], margin, y);
             y += lineHeight;
         }
+        
         const pdfBlob = doc.output('blob');
         const url = URL.createObjectURL(pdfBlob);
         textPdfResult.innerHTML = `<div class="flex-between"><span>📄 Text converted to PDF (${splitText.length} lines).</span><a href="${url}" download="text_document.pdf" class="btn btn-success" style="text-decoration:none;">⬇ Download PDF</a></div>`;
     });
 
-    // Toggle JPEG quality slider for PDF2IMG
     function toggleJpegQualityDiv() {
         const formatSelected = document.querySelector('input[name="pdf2imgFormat"]:checked').value;
         const jpegDiv = document.getElementById('jpegQualityPdfDiv');
@@ -714,31 +749,6 @@
     }
     document.querySelectorAll('input[name="pdf2imgFormat"]').forEach(r => r.addEventListener('change', toggleJpegQualityDiv));
     toggleJpegQualityDiv();
-
-    // Drag & drop for PDF zone
-    pdfUploadZone.addEventListener('dragover', e => e.preventDefault());
-    pdfUploadZone.addEventListener('drop', async (e) => {
-        e.preventDefault();
-        const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
-        if (files.length) {
-            currentPdfFilesList = files;
-            pdfFileListSpan.innerText = currentPdfFilesList.map(f=>f.name).join(', ');
-            allGeneratedImages = [];
-            pdfGalleryResult.innerHTML = '';
-            pdfBatchActions.style.display = 'none';
-        }
-    });
-    imgUploadZone.addEventListener('dragover', e => e.preventDefault());
-    imgUploadZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-        if (files.length) {
-            selectedImageFiles = files;
-            imgFileListSpan.innerText = selectedImageFiles.map(f=>f.name).join(', ');
-            updateImagePreviews(selectedImageFiles);
-            imgToPdfResult.innerHTML = '';
-        }
-    });
 </script>
 </body>
 </html>
