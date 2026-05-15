@@ -10,6 +10,7 @@
       padding: 30px;
     }
 
+    /* ✅ USED CSS IMAGE */
     .hero {
       width: 300px;
       height: 180px;
@@ -19,10 +20,26 @@
       border: 2px solid #333;
     }
 
+    /* ❌ UNUSED CSS IMAGE (simple case) */
     .unused-css {
-      /* ❌ intentionally unused CSS image */
-      background-image: url("images/unused-css.jpg");
+      background-image: url("images/unused-css-1.jpg");
     }
+
+    /* ❌ UNUSED CSS IMAGE (multiple background format) */
+    .unused-css-multi {
+      background: url("images/unused-css-2.jpg") no-repeat center center;
+    }
+
+    /* ❌ UNUSED CSS IMAGE (shorthand with other properties) */
+    .unused-css-shorthand {
+      background: #fff url("images/unused-css-3.jpg") repeat;
+    }
+
+    /* ❌ UNUSED ICON / SVG */
+    .unused-icon::before {
+      content: url("images/unused-icon.svg");
+    }
+
   </style>
 </head>
 
@@ -49,7 +66,7 @@
     img.width = 200;
     document.getElementById("js-image-container").appendChild(img);
 
-    // ❌ unused JS image reference (your scanner should still detect it if scanning JS)
+    // ❌ unused JS image reference
     const unusedImage = "images/unused-js.jpg";
   </script>
 
@@ -57,7 +74,7 @@
   <img data-src="images/used-lazy.jpg" width="200" />
 
   <h2>5. Unused Images (should NOT appear in DOM usage)</h2>
-  <!-- These images exist in folder but are not used -->
+  <!-- These images exist but are NOT used in page rendering -->
   <!-- images/unused-html-1.jpg -->
   <!-- images/unused-html-2.jpg -->
 
