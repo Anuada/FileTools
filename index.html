@@ -4,43 +4,8 @@
   <meta charset="UTF-8" />
   <title>Image Usage Test Page</title>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 30px;
-    }
-
-    /* ✅ USED CSS IMAGE */
-    .hero {
-      width: 300px;
-      height: 180px;
-      background-image: url("images/used-css.jpg");
-      background-size: cover;
-      margin-bottom: 20px;
-      border: 2px solid #333;
-    }
-
-    /* ❌ UNUSED CSS IMAGE (simple case) */
-    .unused-css {
-      background-image: url("images/unused-css-1.jpg");
-    }
-
-    /* ❌ UNUSED CSS IMAGE (multiple background format) */
-    .unused-css-multi {
-      background: url("images/unused-css-2.jpg") no-repeat center center;
-    }
-
-    /* ❌ UNUSED CSS IMAGE (shorthand with other properties) */
-    .unused-css-shorthand {
-      background: #fff url("images/unused-css-3.jpg") repeat;
-    }
-
-    /* ❌ UNUSED ICON / SVG */
-    .unused-icon::before {
-      content: url("images/unused-icon.svg");
-    }
-
-  </style>
+  <!-- ✅ CONNECTED STYLE.CSS -->
+  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
@@ -53,10 +18,20 @@
   <img src="images/used-html-1.jpg" width="200" />
   <img src="images/used-html-2.jpg" width="200" />
 
-  <h2>2. Used Image (CSS Background)</h2>
+  <h2>2. Used Image (CSS Background - from style.css)</h2>
   <div class="hero"></div>
 
-  <h2>3. Used Image (JS Loaded)</h2>
+  <h2>3. UNUSED CSS TEST BLOCKS</h2>
+
+  <!-- These classes exist in style.css but are NOT used in layout -->
+  <div class="unused-bg-1"></div>
+  <div class="unused-bg-2"></div>
+  <div class="unused-bg-3"></div>
+  <div class="unused-bg-4"></div>
+  <div class="unused-svg"></div>
+  <div class="unused-combo"></div>
+
+  <h2>4. Used Image (JS Loaded)</h2>
   <div id="js-image-container"></div>
 
   <script>
@@ -66,15 +41,15 @@
     img.width = 200;
     document.getElementById("js-image-container").appendChild(img);
 
-    // ❌ unused JS image reference
+    // ❌ UNUSED JS image reference
     const unusedImage = "images/unused-js.jpg";
   </script>
 
-  <h2>4. Lazy Loading Test</h2>
+  <h2>5. Lazy Loading Test</h2>
   <img data-src="images/used-lazy.jpg" width="200" />
 
-  <h2>5. Unused Images (should NOT appear in DOM usage)</h2>
-  <!-- These images exist but are NOT used in page rendering -->
+  <h2>6. Unused Images (not referenced in DOM)</h2>
+  <!-- These exist in folder but not used -->
   <!-- images/unused-html-1.jpg -->
   <!-- images/unused-html-2.jpg -->
 
